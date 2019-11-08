@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import moment from 'moment';
 import logo from '../../assets/logo.png';
 import api from '../../services/api';
@@ -12,6 +12,36 @@ export default function Home() {
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    async function loadRepositories() {
+      const reposLocal = await localStorage.getItem('github@repositories');
+      if (reposLocal) {
+        setRepositories(JSON.parse(reposLocal));
+      }
+    }
+
+    loadRepositories();
+  }, []);
+
+  async function saveRepositories(repos) {
+    await localStorage.setItem('github@repositories', JSON.stringify(repos));
+  }
+
+  async function handleUpdate(repository) {
+    const { data } = await api.get(`/repos/${repository.fullName}`);
+
+    setRepositories(
+      repositories.map((repos) => (repos.id === data.id ? data : repos)),
+    );
+  }
+
+  async function handleDelete(repository) {
+    const newRepos = repositories.filter((repos) => repos.id !== repository.id);
+
+    setRepositories(newRepos);
+    saveRepositories(newRepos);
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setLoading(true);
@@ -24,6 +54,7 @@ export default function Home() {
       setRepositories([...repositories, repository]);
       setRepo('');
       setError(false);
+      saveRepositories([...repositories, repository]);
     } catch (err) {
       setError(true);
     } finally {
@@ -47,7 +78,11 @@ export default function Home() {
         </button>
       </Form>
 
-      <List repositories={repositories} />
+      <List
+        repositories={repositories}
+        handleUpdate={handleUpdate}
+        handleDelete={handleDelete}
+      />
     </Container>
   );
 }
